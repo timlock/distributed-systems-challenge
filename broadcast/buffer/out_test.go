@@ -18,17 +18,17 @@ func TestAddMessage(t *testing.T) {
 	for _, msg := range messages {
 		o.AddMessage(msg.Payload)
 		actual := o.Read(dst)
-		expected := messages[:msg.Index + 1]
+		expected := messages[:msg.Index+1]
 		if !reflect.DeepEqual(actual, expected) {
-			t.FailNow()
+			t.Fatal("expected: ", expected, " actual: ", actual)
 		}
 	}
 	for _, msg := range messages {
 		o.Acknowledge(dst, msg.Index)
 		actual := o.Read(dst)
-		expected := messages[msg.Index +1:]
-		if reflect.DeepEqual(actual, expected) {
-			t.FailNow()
+		expected := messages[msg.Index+1:]
+		if !reflect.DeepEqual(actual, expected) {
+			t.Fatal("expected: ", expected, " actual: ", actual)
 		}
 	}
 }

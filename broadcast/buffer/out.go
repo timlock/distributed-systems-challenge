@@ -43,8 +43,9 @@ func (o *Out) Read(dst string) []Message {
 		return make([]Message, 0)
 	}
 	messages := make([]Message, 0, len(o.messages[begin:]))
-	for index, payload := range o.messages[begin:] {
-		messages = append(messages, Message{Payload: payload, Index: index})
+	for i := begin; i < len(o.messages); i++ {
+		message := Message{Payload: o.messages[i], Index: i}
+		messages = append(messages, message)
 	}
 	return messages
 }

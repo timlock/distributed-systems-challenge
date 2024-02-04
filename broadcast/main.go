@@ -4,6 +4,7 @@ import (
 	"broadcast/buffer"
 	"encoding/json"
 	"log"
+	"time"
 
 	maelstrom "github.com/jepsen-io/maelstrom/demo/go"
 )
@@ -12,6 +13,38 @@ type Server struct {
 	node     *maelstrom.Node
 	outgoing *buffer.Out
 	ingoing  *buffer.In
+	syncIn   chan<- buffer.Message
+}
+
+func (s *Server) Run(duration int) {
+	syncC := make(chan buffer.Message)
+	s.syncIn = syncC
+	go func() {
+		ticker := time.NewTicker(500 * time.Millisecond)
+		for {
+			<-ticker.C
+			body := make(map[string]any)
+			body["type"] = "replicate"
+			for _, dst := range s.node.NodeIDs() {
+				if dst != s.node.ID() {
+					messages := s.outgoing.Read(dst)
+					if len(messages) == 0 {
+						continue
+					}
+					body["Messages"] = messages
+					lastIndex := messages[len(messages)-1].Index
+					s.node.RPC(dst, body, func(msg maelstrom.Message) error {
+						var body map[string]any
+						if err := json.Unmarshal(msg.Body, &body); err != nil {
+							return err
+						}
+						s.outgoing.Acknowledge(dst, lastIndex)
+						return nil
+					})
+				}
+			}
+		}
+	}()
 }
 
 func (s *Server) handleBroadcast(msg maelstrom.Message) error {
