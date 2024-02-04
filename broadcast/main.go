@@ -28,7 +28,7 @@ type Server struct {
 
 func (s *Server) Run() {
 	go func() {
-		ticker := time.NewTicker(500 * time.Millisecond)
+		ticker := time.NewTicker(800 * time.Millisecond)
 		for {
 			// select {
 			// case <-ticker.C:
