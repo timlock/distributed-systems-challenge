@@ -1,7 +1,6 @@
 package buffer
 
 import (
-	"slices"
 	"sync"
 )
 
@@ -9,12 +8,14 @@ type Buffer struct {
 	sync.RWMutex
 	messages    []int
 	vectorClock map[string]int
+	filter      map[int]struct{}
 }
 
-func NewOut() *Buffer {
+func NewBuffer() *Buffer {
 	messages := make([]int, 0)
 	vectorClock := make(map[string]int)
-	return &Buffer{messages: messages, vectorClock: vectorClock}
+	filter := make(map[int]struct{})
+	return &Buffer{messages: messages, vectorClock: vectorClock, filter: filter}
 }
 
 func (b *Buffer) AddNode(node string) {
@@ -24,11 +25,12 @@ func (b *Buffer) AddNode(node string) {
 		b.vectorClock[node] = 0
 	}
 }
-func (b *Buffer) AddMessage(payload int) {
+func (b *Buffer) AddMessage(value int) {
 	b.Lock()
 	defer b.Unlock()
-	if !slices.Contains(b.messages, payload) {
-		b.messages = append(b.messages, payload)
+	if _, ok := b.filter[value]; !ok {
+		b.messages = append(b.messages, value)
+		b.filter[value] = struct{}{}
 	}
 }
 

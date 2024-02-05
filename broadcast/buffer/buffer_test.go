@@ -7,7 +7,7 @@ import (
 )
 
 func TestAddMessage(t *testing.T) {
-	o := buffer.NewOut()
+	o := buffer.NewBuffer()
 	dst := "i"
 	o.AddNode(dst)
 	messages := []int{1, 2, 3}

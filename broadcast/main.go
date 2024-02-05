@@ -9,29 +9,16 @@ import (
 	maelstrom "github.com/jepsen-io/maelstrom/demo/go"
 )
 
-type Message int
-type Messages []int
-type Acknowledge struct {
-	Index int
-	Src   string
-}
-type NewNode string
-type Read chan []int
-type Topology []string
-
 type Server struct {
-	node         *maelstrom.Node
-	buffer       *buffer.Buffer
-	neighbours   []string
-	instructions chan any
+	node       *maelstrom.Node
+	buffer     *buffer.Buffer
+	neighbours []string
 }
 
 func (s *Server) Run() {
 	go func() {
 		ticker := time.NewTicker(800 * time.Millisecond)
 		for {
-			// select {
-			// case <-ticker.C:
 			<-ticker.C
 			body := struct {
 				Type     string `json:"type"`
@@ -52,31 +39,10 @@ func (s *Server) Run() {
 					}
 					lastIndex = body.Ack
 					s.buffer.Acknowledge(msg.Src, lastIndex)
-					// s.instructions <- Acknowledge{Src: msg.Src, Index: lastIndex}
 					log.Println("Updated vector clock: ", msg.Src, ": ", lastIndex+1)
 					return nil
 				})
 
-				// }
-				// case msg := <-s.instructions:
-				// 	switch t := msg.(type) {
-				// 	case Message:
-				// 		s.buffer.AddMessage(int(t))
-				// 	case Messages:
-				// 		for _, message := range t {
-				// 			s.buffer.AddMessage(message)
-				// 		}
-				// 	case Acknowledge:
-				// 		s.buffer.Acknowledge(t.Src, t.Index)
-				// 	case NewNode:
-				// 		s.buffer.AddNode(string(t))
-				// 	case Read:
-				// 		t <- s.buffer.ReadAll()
-				// 	case Topology:
-				// 		s.neighbours = t
-				// 	default:
-				// 		log.Fatalln("Received unknown message: ", t)
-				// 	}
 			}
 		}
 	}()
@@ -88,7 +54,6 @@ func (s *Server) handleBroadcast(msg maelstrom.Message) error {
 		return err
 	}
 	payload := int(body["message"].(float64))
-	// s.instructions <- Message(payload)
 	s.buffer.AddMessage(payload)
 	return s.node.Reply(msg, map[string]any{
 		"type": "broadcast_ok",
@@ -104,7 +69,6 @@ func (s *Server) handleReplicate(msg maelstrom.Message) error {
 		return err
 	}
 	messages := body.Messages
-	// s.instructions <- Messages(messages)
 	for _, message := range messages {
 		s.buffer.AddMessage(message)
 	}
@@ -119,9 +83,6 @@ func (s *Server) handleRead(msg maelstrom.Message) error {
 		return err
 	}
 	messages := s.buffer.ReadAll()
-	// c := make(chan []int)
-	// s.instructions <- Read(c)
-	// messages := <-c
 	return s.node.Reply(msg, map[string]any{
 		"type":     "read_ok",
 		"messages": messages,
@@ -135,8 +96,6 @@ func (s *Server) handleTopology(msg maelstrom.Message) error {
 		return err
 	}
 	s.neighbours = s.node.NodeIDs()
-	// s.neighbours = body.Topology[msg.Dest]
-	// s.instructions <- Topology(body.Topology[msg.Dest])
 	log.Println("Neighbours are: ", body.Topology[msg.Dest])
 	return s.node.Reply(msg, map[string]any{
 		"type": "topology_ok",
@@ -145,9 +104,8 @@ func (s *Server) handleTopology(msg maelstrom.Message) error {
 
 func main() {
 	n := maelstrom.NewNode()
-	outgoing := buffer.NewOut()
-	instructions := make(chan any)
-	server := Server{node: n, buffer: outgoing, instructions: instructions}
+	outgoing := buffer.NewBuffer()
+	server := Server{node: n, buffer: outgoing}
 	server.Run()
 
 	n.Handle("broadcast", server.handleBroadcast)
